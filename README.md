@@ -4,7 +4,7 @@
 La première étape de l'exercice consiste à récupérer les données des 100 derniers dépôts publics. La seconde étape consiste à filtrer et structurer ces données le plus rapidement possible (en multi-threading via les goroutines) au moment où une requête est faite sur notre endpoint. Il devra également comporter des query params pour filtrer les données (langage, licence, etc.) 
 
 ```
-Exemple de filtrage : /api/endpoint?lang=go
+Exemple de filtrage : /api/endpoint?lang=go&license=MIT
 ```
 
 Il est important de penser performance et scalabilité dès le départ. Si nous avons 1 million de requêtes/s sur cet endpoint, nous ne pouvons pas nous permettre de faire 1 million de requêtes/s vers l'API GitHub. Il est donc primordial de mettre en place un système de cache pour servir les mêmes données en notre possession à l'ensemble des clients.
@@ -39,9 +39,9 @@ Il semblerait que GitHub implémente son propre système de cache côté serveur
 3. Gestion du cache :
    - Utiliser une structure de données en mémoire pour stocker les informations des dépôts.
    - Implémenter un mécanisme de verrouillage (mutex) pour éviter les problèmes de concurrence lors des mises à jour.
-   - Stocker les données filtrées par langage, licence, etc. pour optimiser les requêtes fréquentes.
 
 4. Optimisations et features possiblees :
+   - Stocker les données filtrées par langage, licence, etc. pour optimiser les requêtes fréquentes.
    - S'authentifier auprès de GitHub pour augmenter le rate limit de l'API GitHub (bien que leur cache interne semble être la réelle limite)
    - Implémenter un middleware de rate limiting sur nos endpoints pour se protéger contre les abus.
    - Utiliser un cache distribué (comme Redis) si l'application doit être déployée sur plusieurs instances (scaling horizontal).
@@ -105,12 +105,67 @@ Contient le code spécifique à l'application, non destiné à être importé pa
 
 ### Dossier `pkg`
 
+Contient du code potentiellement réutilisables dans d'autres projets
+
 - `utils/helpers.go`: Fonctions utilitaires potentiellement réutilisables dans d'autres projets.
 
 ### Dossier `tests`
 
 - `integration_test.go`: Tests d'intégration pour l'application.
 
+
+## Structure de réponse de github
+
+On utilise une requête "large"" pour récupérer les 100 derniers dépôts publics et on obtenir le plus de données possible dans la réponse.
+
+```
+https://api.github.com/search/repositories?q=is:public&sort=created&order=desc&per_page=100
+```
+
+### Structure de la réponse github
+
+
+## Structure de l'affichage des données attendu 
+
+### Json output
+
+```json
+{
+  "repositories": [
+    {
+      "full_name": "FreeCodeCamp/FreeCodeCamp",
+      "owner": "FreeCodeCamp",
+      "repository": "FreeCodeCamp",
+      "languages": {
+        "javascript": {
+          "bytes": 123456
+        }
+      },
+      "license": "BSD
+    },
+    // ...
+  ]
+}
+```
+
+### Go Type Struct
+
+```go
+type Response struct {
+    Repositories []Repository `json:"repositories"`
+}
+
+type Repository struct {
+    FullName   string              `json:"full_name"`
+    Owner      string              `json:"owner"`
+    Repository string              `json:"repository"`
+    Languages  map[string]Language `json:"languages"`
+}
+
+type Language struct {
+    Bytes int `json:"bytes"`
+}
+```
 
 ## Execution
 
