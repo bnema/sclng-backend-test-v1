@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sort"
 	"time"
 
 	"github.com/google/go-github/v66/github"
@@ -75,9 +76,13 @@ func main() {
 		// If we reach this point, we need to move to the next page because either:
 		// 1. We haven't collected 100 repos with non-null languages yet, or
 		// 2. We received a full page of results, but some had null languages
-
 		page++
 	}
+
+	// Sort the repositories by creation time (newest first)
+	sort.Slice(allRepos, func(i, j int) bool {
+		return allRepos[i].GetCreatedAt().After(allRepos[j].GetCreatedAt().Time)
+	})
 
 	// Trim the results to 100 if we got more
 	if len(allRepos) > 100 {
