@@ -22,8 +22,8 @@ func main() {
 	fmt.Println("Search time:", today)
 
 	// Create a search query
-	// This query will find public repositories created on or after the start of today
-	query := fmt.Sprintf("is:public created:>=%s", today)
+	// This query will find public repositories created today
+	query := fmt.Sprintf("is:public created:%s", today)
 
 	// Set up search options
 	opts := &github.SearchOptions{
