@@ -1,169 +1,110 @@
 
-## Raisonnement 
+## Reasoning
 
-La première étape de l'exercice consiste à récupérer les données des 100 derniers dépôts publics. La seconde étape consiste à filtrer et structurer ces données le plus rapidement possible (en multi-threading via les goroutines) au moment où une requête est faite sur notre endpoint. Il devra également comporter des query params pour filtrer les données (langage, licence, etc.) 
+It's important to consider performance and scalability from the start. If we have 1 million requests/s on this endpoint, we can't afford to make 1 million requests/s to the GitHub API. It's therefore crucial to set up a caching system to serve the same data in our possession to all clients.
 
+List of steps:
+
+1. Retrieve the 100 latest public repositories
+2. Get the list of languages used for each of these repositories (as quickly as possible)
+3. Transform the fetched GitHub repository data and language information into our CustomRepository model (as quickly as possible)
+4. Set up a cache to serve data to clients
+5. Serve the data on our /search endpoint
+6. Offer query params to filter the data (language, license, etc.)
+
+
+
+The exercise involves performing an initial fetch to retrieve the 100 latest public GitHub repositories and then, for each of these repositories, retrieve the list of languages used. That's a total of 101 requests to be made to the GitHub API each time we want to update the cache.
+
+For information, the GitHub API has the following rate limits:
+
+- Unauthenticated: 60 requests per hour
+- Authenticated: 5000 requests per hour	
+
+It's therefore imperative to use the authenticated (via a personal access token) API to avoid exceeding the rate limit and getting blocked.
+
+## Explanation of the project structure
+
+### `cmd` folder
+
+- `cmd/api/main.go`: Application entry point. 
+
+### `internal` folder
+
+Contains application-specific code, not intended to be imported by other projects.
+
+- `api/`: Logic related to the HTTP API.
+  - `handlers/search_handler.go`: Handling of HTTP requests for repositories.
+  - `middlewares.go`: 
+  - `routes.go`: Definition of API routes.
+  - `server.go`: HTTP server configuration and launch.
+- `cache/cache.go`: Implementation of caching logic.
+- `config/config.go`: Application configuration management.
+- `github/client.go`: Client for interacting with the GitHub API.
+- `models/repository.go`: Data structures for repositories.
+- `services/repository_service.go`: Logic for repository management.
+
+
+## Usage
+
+The API provides the following endpoint:
+
+### Search Repositories
+
+- **Endpoint**: `/api/search`
+- **Method**: GET
+- **Description**: Retrieves and filters the latest public repositories from GitHub.
+
+### Ping
+
+- **Endpoint**: `/ping`
+- **Method**: GET
+- **Description**: Check if the API is running.
+
+#### Query Parameters
+
+1. `lang` (optional): Filter repositories by programming language.
+   - Example: `/api/search?lang=go`
+
+2. `license` (optional): Filter repositories by license type.
+   - Example: `/api/search?license=MIT`
+
+3. `stars` (optional): Filter repositories by minimum number of stars.
+   - Example: `/api/search?stars=1000`
+
+You can combine multiple parameters:
 ```
-Exemple de filtrage : /api/endpoint?lang=go&license=MIT
-```
-
-Il est important de penser performance et scalabilité dès le départ. Si nous avons 1 million de requêtes/s sur cet endpoint, nous ne pouvons pas nous permettre de faire 1 million de requêtes/s vers l'API GitHub. Il est donc primordial de mettre en place un système de cache pour servir les mêmes données en notre possession à l'ensemble des clients.
-
-L'enjeu majeur est de servir les données les plus "fraîches" possibles provenant de GitHub aux clients sans pour autant atteindre le "rate limit" de l'API GitHub qui sont les suivantes :
-
-- Primary rate limit for unauthenticated users : 60 requests per hour ou 0,0167 requêtes par seconde ou 1 requête par minute
-- Primary rate limit for GitHub App installations : 5000 requests per hour ou 1,3889 requêtes par seconde
-
-Pour notre exercice, dans un souci de simplification, nous allons rester sur le rate limit pour les utilisateurs non-authentifiés. 
-
-Donc pour avoir les données les plus fraîches possibles, nous pouvons interroger l'API de GitHub toutes les minutes je pourrais mettre en place un scheduler qui fetch toutes les 1 minutes mais je ne pense pas que cela vaille la peine de générer du traffic inutile. Je préfère que la 1ère requête toutes les 1 minutes soit un peu plus lente à être disponible (Il s'agit plus d'une prise de parti sujet à discussion bien entendu 🙂)
-
-Note :
-Il semblerait que GitHub implémente son propre système de cache côté serveur. Pour l'API de recherche, la durée de ce cache semble être d'environ 30 secondes à 1 minute, bien que ce ne soit pas officiellement documenté.
-
-## Plan d'action / Pseudo code
-
-1. Lorsqu'une requête arrive sur notre endpoint :
-   - Vérifier si des données sont présentes dans le cache.
-   - Si le cache est vide ou si les données sont périmées (plus de 1 minute), déclencher une mise à jour du cache.
-   - Si une mise à jour du cache est en cours, attendre qu'elle soit terminée (avec un timeout raisonnable).
-   - Retourner les données du cache (mises à jour ou non) au client.
-
-2. Mise à jour du cache :
-   - Vérifier la dernière fois que l'API GitHub a été interrogée.
-   - Si moins d'une minute s'est écoulée depuis la dernière requête, attendre le temps restant.
-   - Interroger l'API GitHub pour obtenir les 100 derniers dépôts publics.
-   - Traiter et structurer les données reçues en utilisant des goroutines pour optimiser les performances.
-   - Mettre à jour le cache avec les nouvelles données.
-
-3. Gestion du cache :
-   - Utiliser une structure de données en mémoire pour stocker les informations des dépôts.
-   - Implémenter un mécanisme de verrouillage (mutex) pour éviter les problèmes de concurrence lors des mises à jour.
-
-4. Optimisations et features possiblees :
-   - Stocker les données filtrées par langage, licence, etc. pour optimiser les requêtes fréquentes.
-   - S'authentifier auprès de GitHub pour augmenter le rate limit de l'API GitHub (bien que leur cache interne semble être la réelle limite)
-   - Implémenter un middleware de rate limiting sur nos endpoints pour se protéger contre les abus.
-   - Utiliser un cache distribué (comme Redis) si l'application doit être déployée sur plusieurs instances (scaling horizontal).
-   - Conserver les données en base de données (ajout de timestamp pour créer un historique chronologique)
-   - Proposer d'autres endpoints (exemple: des stats type "language le plus utilisé sur le mois dernier")
-
-## Structure du projet
-
-```
-.
-├── Dockerfile
-├── docker-compose.yml
-├── README.md
-├── go.mod
-├── go.sum
-├── cmd
-│   └── api
-│       └── main.go
-├── internal
-│   ├── api
-│   │   ├── handlers
-│   │   │   └── repository_handler.go
-│   │   ├── routes.go
-│   │   └── server.go
-│   ├── cache
-│   │   └── cache.go
-│   ├── config
-│   │   └── config.go
-│   ├── github
-│   │   └── client.go
-│   ├── models
-│   │   └── repository.go
-│   └── services
-│       └── repository_service.go
-├── pkg
-│   └── utils
-│       └── helpers.go
-└── tests
-    └── integration_test.go
+/api/search?lang=python&license=MIT&stars=500
 ```
 
-## Explication de la structure du projet
+#### Response
 
-### Dossier `cmd`
-
-- `cmd/api/main.go`: Point d'entrée de l'application. 
-
-### Dossier `internal`
-
-Contient le code spécifique à l'application, non destiné à être importé par d'autres projets.
-
-- `api/`: Logique liée à l'API HTTP.
-  - `handlers/repository_handler.go`: Gestion des requêtes HTTP pour les dépôts.
-  - `routes.go`: Définition des routes de l'API.
-  - `server.go`: Configuration et lancement du serveur HTTP.
-- `cache/cache.go`: Implémentation de la logique de mise en cache.
-- `config/config.go`: Gestion de la configuration de l'application.
-- `github/client.go`: Client pour interagir avec l'API GitHub.
-- `models/repository.go`: Structures de données pour les dépôts.
-- `services/repository_service.go`: Logique pour la gestion des dépôts.
-
-### Dossier `pkg`
-
-Contient du code potentiellement réutilisables dans d'autres projets
-
-- `utils/helpers.go`: Fonctions utilitaires potentiellement réutilisables dans d'autres projets.
-
-### Dossier `tests`
-
-- `integration_test.go`: Tests d'intégration pour l'application.
-
-
-## Structure de réponse de github
-
-On utilise une requête "large"" pour récupérer les 100 derniers dépôts publics et on obtenir le plus de données possible dans la réponse.
-
-```
-https://api.github.com/search/repositories?q=is:public&sort=created&order=desc&per_page=100
-```
-
-### Structure de la réponse github
-
-
-## Structure de l'affichage des données attendu 
-
-### Json output
+The endpoint returns a JSON object with the following structure:
 
 ```json
 {
+  "last_updated": "2023-04-20T15:30:45Z",
+  "total_results": 42,
   "repositories": [
     {
-      "full_name": "FreeCodeCamp/FreeCodeCamp",
-      "owner": "FreeCodeCamp",
-      "repository": "FreeCodeCamp",
+      "full_name": "owner/repo",
+      "owner": "owner",
+      "repository": "repo",
       "languages": {
-        "javascript": {
+        "go": {
           "bytes": 123456
         }
       },
-      "license": "BSD
+      "license": "MIT",
+      "created_at": "2024-01-00T00:00:00Z",
+      "updated_at": "2024-01-00T00:00:00Z",
+      "pushed_at": "2024-01-00T00:00:00Z",
+      "stars": 1000,
+      "forks": 50,
+      "issues": 10
     },
-    // ...
+    // ... more repositories
   ]
-}
-```
-
-### Go Type Struct
-
-```go
-type Response struct {
-    Repositories []Repository `json:"repositories"`
-}
-
-type Repository struct {
-    FullName   string              `json:"full_name"`
-    Owner      string              `json:"owner"`
-    Repository string              `json:"repository"`
-    Languages  map[string]Language `json:"languages"`
-}
-
-type Language struct {
-    Bytes int `json:"bytes"`
 }
 ```
 
@@ -175,9 +116,19 @@ docker compose up
 
 Application will be then running on port `5000`
 
-## Test
 
-```
-$ curl localhost:5000/ping
-{ "status": "pong" }
-```
+## Possible optimizations and features
+   - Update the cache at regular intervals
+   - Implement a rate limiting middleware on our endpoints to protect against abuse.
+   - Use a distributed cache (like Redis) if the application needs to be deployed on multiple instances (horizontal scaling).
+   - Store data in a database
+   - Offer other endpoints (example: stats like "most used language in the last month")
+
+
+## Final note
+
+I had fun with this. I struggled to retrieve the most recent repos from GitHub (on a large query), my compromise was to retrieve all those from the day and keep only 100.
+
+For performance reasons, I allowed myself to create a goroutine that executes 100 requests in parallel to retrieve the languages used. This doesn't seem to bother GitHub if I'm authenticated, and the application's cold start is significantly faster.
+
+For updating the cache at intervals, We could have used a slower approach to not exceed 5000 requests/hour or implementing a rate limiter in req/s.
