@@ -9,6 +9,4 @@ COPY . .
 
 RUN go build -o scalingo-api-test ./cmd/api
 
-EXPOSE 5000
-
 CMD ["./scalingo-api-test"]

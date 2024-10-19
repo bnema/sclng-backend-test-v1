@@ -6,8 +6,8 @@ It's important to consider performance and scalability from the start. If we hav
 List of steps:
 
 1. Retrieve the 100 latest public repositories
-2. Get the list of languages used for each of these repositories (as quickly as possible)
-3. Transform the fetched GitHub repository data and language information into our CustomRepository model (as quickly as possible)
+2. Get the list of languages used for each of these repositories (as fast as possible)
+3. Transform the fetched GitHub repository data and language information into our CustomRepository model (as fast as possible)
 4. Set up a cache to serve data to clients
 5. Serve the data on our /search endpoint
 6. Offer query params to filter the data (language, license, etc.)
@@ -35,13 +35,12 @@ Contains application-specific code, not intended to be imported by other project
 
 - `api/`: Logic related to the HTTP API.
   - `handlers/search_handler.go`: Handling of HTTP requests for repositories.
-  - `middlewares.go`: 
   - `routes.go`: Definition of API routes.
   - `server.go`: HTTP server configuration and launch.
 - `cache/cache.go`: Implementation of caching logic.
 - `config/config.go`: Application configuration management.
 - `github/client.go`: Client for interacting with the GitHub API.
-- `models/repository.go`: Data structures for repositories.
+- `models/custom_repository.go`: Data structures for repositories.
 - `services/repository_service.go`: Logic for repository management.
 
 
@@ -49,17 +48,18 @@ Contains application-specific code, not intended to be imported by other project
 
 The API provides the following endpoint:
 
+### Ping
+
+- **Endpoint**: `/ping`
+- **Method**: GET
+- **Description**: Check if the API is running.
+
 ### Search Repositories
 
 - **Endpoint**: `/api/search`
 - **Method**: GET
 - **Description**: Retrieves and filters the latest public repositories from GitHub.
 
-### Ping
-
-- **Endpoint**: `/ping`
-- **Method**: GET
-- **Description**: Check if the API is running.
 
 #### Query Parameters
 
@@ -112,6 +112,8 @@ The endpoint returns a JSON object with the following structure:
 
 ```
 docker compose up
+or
+podman-compose up
 ```
 
 Application will be then running on port `5000`
