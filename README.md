@@ -12,8 +12,6 @@ List of steps:
 5. Serve the data on our /search endpoint
 6. Offer query params to filter the data (language, license, etc.)
 
-
-
 The exercise involves performing an initial fetch to retrieve the 100 latest public GitHub repositories and then, for each of these repositories, retrieve the list of languages used. That's a total of 101 requests to be made to the GitHub API each time we want to update the cache.
 
 For information, the GitHub API has the following rate limits:
@@ -95,7 +93,7 @@ The endpoint returns a JSON object with the following structure:
           "bytes": 123456
         }
       },
-      "license": "MIT",
+      "license": "MIT License",
       "created_at": "2024-01-00T00:00:00Z",
       "updated_at": "2024-01-00T00:00:00Z",
       "pushed_at": "2024-01-00T00:00:00Z",
@@ -109,6 +107,8 @@ The endpoint returns a JSON object with the following structure:
 ```
 
 ## Execution
+
+Define the .env for GITHUB_TOKEN and PORT and run:
 
 ```
 docker compose up
@@ -125,6 +125,7 @@ Application will be then running on port `5000`
    - Use a distributed cache (like Redis) if the application needs to be deployed on multiple instances (horizontal scaling).
    - Store data in a database
    - Offer other endpoints (example: stats like "most used language in the last month")
+   - A proper logging system (zerolog) and metrics
 
 
 ## Final note
