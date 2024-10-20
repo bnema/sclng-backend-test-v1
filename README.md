@@ -1,7 +1,18 @@
+# GitHub Repository Explorer
+
+## Table of Contents
+- [Reasoning](#reasoning)
+- [Explanation of the project structure](#explanation-of-the-project-structure)
+- [Usage](#usage)
+  - [Ping](#ping)
+  - [Search Repositories](#search-repositories)
+    - [Query Parameters](#query-parameters)
+    - [Response](#response)
+- [Execution](#execution)
+- [Possible optimizations and features](#possible-optimizations-and-features)
+- [Final note](#final-note)
 
 ## Reasoning
-
-It's important to consider performance and scalability from the start. If we have 1 million requests/s on this endpoint, we can't afford to make 1 million requests/s to the GitHub API. It's therefore crucial to set up a caching system to serve the same data in our possession to all clients.
 
 List of steps:
 
@@ -11,6 +22,8 @@ List of steps:
 4. Set up a cache to serve data to clients
 5. Serve the data on our /search endpoint
 6. Offer query params to filter the data (language, license, etc.)
+
+It's important to consider performance and scalability from the start. If we have 1 million requests/s on our endpoint, we can't afford to make 1 million requests/s to the GitHub API. It's therefore crucial to set up a caching system to serve the same data in our possession to all clients.
 
 The exercise involves performing an initial fetch to retrieve the 100 latest public GitHub repositories and then, for each of these repositories, retrieve the list of languages used. That's a total of 101 requests to be made to the GitHub API each time we want to update the cache.
 
@@ -37,9 +50,8 @@ Contains application-specific code, not intended to be imported by other project
   - `server.go`: HTTP server configuration and launch.
 - `cache/cache.go`: Implementation of caching logic.
 - `config/config.go`: Application configuration management.
-- `github/client.go`: Client for interacting with the GitHub API.
 - `models/custom_repository.go`: Data structures for repositories.
-- `services/repository_service.go`: Logic for repository management.
+- `services/repository_service.go`: Logic to fetch and transform repositories.
 
 
 ## Usage
@@ -108,7 +120,13 @@ The endpoint returns a JSON object with the following structure:
 
 ## Execution
 
-Define the .env for GITHUB_TOKEN and PORT and run:
+Create a `.env` file and set those variables:
+```
+GITHUB_TOKEN=your_github_token
+PORT=5000
+``` 
+
+Run the application:
 
 ```
 docker compose up
@@ -120,17 +138,19 @@ Application will be then running on port `5000`
 
 
 ## Possible optimizations and features
-   - Update the cache at regular intervals
+   - Fetch and update the cache at regular intervals (cronjob in background)
    - Implement a rate limiting middleware on our endpoints to protect against abuse.
    - Use a distributed cache (like Redis) if the application needs to be deployed on multiple instances (horizontal scaling).
-   - Store data in a database
+   - Aggregate and store data to have an history
    - Offer other endpoints (example: stats like "most used language in the last month")
-   - A proper logging system (zerolog) and metrics
+   - A proper logging system/package and metrics
 
 
 ## Final note
 
-I had fun with this. I struggled to retrieve the most recent repos from GitHub (on a large query), my compromise was to retrieve all those from the day and keep only 100.
+I had fun with this. I struggled to retrieve the most recent repos from GitHub (on a large query), my compromise was to retrieve all those from the day between a range of 5 minutes ago and now (in UTC).
+
+From my testing it seems there is an average of 100 repositories created each minute but they are for the most part empty or with no language(s) or license set. So I set the range to 5 minutes (~500 repositories) and I ignore the ones with no language(s). It consistently returns me 100 results so I think it's a good compromise.
 
 For performance reasons, I allowed myself to create a goroutine that executes 100 requests in parallel to retrieve the languages used. This doesn't seem to bother GitHub if I'm authenticated, and the application's cold start is significantly faster.
 

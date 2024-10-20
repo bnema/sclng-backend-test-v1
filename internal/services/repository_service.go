@@ -27,9 +27,9 @@ type RepoInfo struct {
 
 // NewRepoService creates a new RepoService with an authenticated GitHub client
 func NewRepoService(config *config.Config) (*RepoService, error) {
-	// Create a GitHub client, authenticated if a token is provided
+	// Create a GitHub client
 	client := github.NewClient(nil)
-
+	// If a token is provided, use it to authenticate the client
 	client = client.WithAuthToken(config.GitHubToken)
 	log.Println("Repo service started using GitHub's authenticated client")
 
@@ -71,7 +71,19 @@ func (s *RepoService) GetTodaysPublicRepos() ([]*RepoInfo, error) {
 
 // fetchReposWithLanguage fetches repositories with non-null language
 func (s *RepoService) fetchReposWithLanguage(ctx context.Context) ([]*github.Repository, error) {
-	query := fmt.Sprintf("is:public created:%s", time.Now().Format("2006-01-02"))
+
+	// Get the current time in UTC
+	now := time.Now().UTC()
+
+	// For the time range, we will use the current time and substract 10 minutes
+	endTime := now
+	// Substract 5 minutes to the end time
+	startTime := endTime.Add(-5 * time.Minute)
+
+	// Set the time as RFC3339 format and add the time range
+	query := fmt.Sprintf("is:public created:%s..%s", startTime.Format(time.RFC3339), endTime.Format(time.RFC3339))
+
+	// Set the options for the GitHub API request
 	opts := &github.SearchOptions{
 		Sort:  "created",
 		Order: "desc",
@@ -170,13 +182,17 @@ func (s *RepoService) TransformToCustomRepositories(repoInfos []*RepoInfo) ([]*m
 	return customRepos, nil
 }
 
+// transformSingleRepo transforms a single RepoInfo to a CustomRepository
 func (s *RepoService) transformSingleRepo(repoInfo *RepoInfo) (*models.CustomRepository, error) {
 	repo := repoInfo.Repo
+
+	// Transform languages to CustomRepository languages
 	languages := make(map[string]models.Language)
 	for lang, bytes := range repoInfo.Languages {
 		languages[lang] = models.Language{Bytes: bytes}
 	}
 
+	// Update and return the CustomRepository
 	return &models.CustomRepository{
 		FullName:   repo.GetFullName(),
 		Owner:      repo.GetOwner().GetLogin(),
