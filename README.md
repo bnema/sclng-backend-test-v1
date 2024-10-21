@@ -93,7 +93,7 @@ The endpoint returns a JSON object with the following structure:
 
 ```json
 {
-  "last_updated": "2023-04-20T15:30:45Z",
+  "last_updated": "2024-01-00T00:00:00Z",
   "total_results": 42,
   "repositories": [
     {
@@ -148,10 +148,8 @@ Application will be then running on port `5000`
 
 ## Final note
 
-I had fun with this. I struggled to retrieve the most recent repos from GitHub (on a large query), my compromise was to retrieve all those from the day between a range of 5 minutes ago and now (in UTC).
+I had fun with this. I struggled to retrieve the most recent repos from GitHub by "created" and order by "desc" (on a large query), my compromise was to retrieve all those between a range of 5 minutes ago and now (in UTC).
 
-From my testing it seems there is an average of 100 repositories created each minute but they are for the most part empty or with no language(s) or license set. So I set the range to 5 minutes (~500 repositories) and I ignore the ones with no language(s). It consistently returns me 100 results so I think it's a good compromise.
+From my testing it seems there is an average of 100 repositories created each minute but they are for the most part empty or with no language. So I set the range to 5 minutes (~500 repositories) and I ignore the ones with no language. It consistently returns me 100 results so I think it's a good compromise.
 
-For performance reasons, I allowed myself to create a goroutine that executes 100 requests in parallel to retrieve the languages used. This doesn't seem to bother GitHub if I'm authenticated, and the application's cold start is significantly faster.
-
-For updating the cache at intervals, We could have used a slower approach to not exceed 5000 requests/hour or implementing a rate limiter in req/s.
+With performance in mind, I allowed myself to create a goroutine that executes 100 requests in parallel to retrieve the languages details. This doesn't seem to bother GitHub if I'm authenticated, and the application's cold start is significantly faster.

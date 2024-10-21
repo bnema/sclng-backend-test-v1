@@ -8,6 +8,8 @@ import (
 	"scalingo-api-test/internal/models"
 )
 
+// This could be easily replaced by a Redis cache
+
 // Cache represents an in-memory cache for storing CustomRepository objects
 type Cache struct {
 	repos     []*models.CustomRepository
