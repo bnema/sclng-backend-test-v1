@@ -148,7 +148,7 @@ Application will be then running on port `5000`
 
 ## Final note
 
-I had fun with this. I struggled to retrieve the most recent repos from GitHub by "created" and order by "desc" (on a large query), my compromise was to retrieve all those between a range of 5 minutes ago and now (in UTC).
+I had fun with this. I struggled to retrieve the most recent repos from GitHub by "created" and order by "desc" (on a large query), my compromise was to retrieve all those between a range of 5 minutes ago and now (in UTC). Also, it doesnt seems possible to retrieve languages details on a large query, so I had to make a request for each repository.
 
 From my testing it seems there is an average of 100 repositories created each minute but they are for the most part empty or with no language. So I set the range to 5 minutes (~500 repositories) and I ignore the ones with no language. It consistently returns me 100 results so I think it's a good compromise.
 
